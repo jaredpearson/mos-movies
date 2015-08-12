@@ -128,7 +128,7 @@ app.get('/movies.json', auth, function(request, response) {
             return;
         }
 
-        client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN movie_ratings rating ON movies.movies_id = rating.movie WHERE rating.created_by IS NULL OR rating.created_by=$1 ORDER BY movies.title', [contextUserId], function(err, result) {
+        client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN (SELECT * FROM movie_ratings WHERE created_by=$1) rating ON movies.movies_id = rating.movie ORDER BY movies.title', [contextUserId], function(err, result) {
             if (handleDbError(response, client, done, err)) {
                 return;
             }
