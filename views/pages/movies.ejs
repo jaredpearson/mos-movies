@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Mo's Movies</title>
     <% include ../partials/header.ejs %>
 
     <script type="text/javascript" src="https://fb.me/react-0.13.3.js"></script>
@@ -17,25 +18,124 @@
         }
 
         var MovieRow = React.createClass({
+            handleClickRating1: function(e) {
+                this.handleClickRating(e, 1);
+            },
+            handleClickRating2: function(e) {
+                this.handleClickRating(e, 2);
+            },
+            handleClickRating3: function(e) {
+                this.handleClickRating(e, 3);
+            },
+            handleClickRating4: function(e) {
+                this.handleClickRating(e, 4);
+            },
+            handleClickRating5: function(e) {
+                this.handleClickRating(e, 5);
+            },
+            handleClickRating: function(e, value) {
+                e.preventDefault();
+
+                $.ajax({
+                    url: '/movies/' + this.props.movie.movies_id + '.json',
+                    dataType: 'json',
+                    type: 'PATCH',
+                    data: {
+                        myRating: value
+                    },
+                    success: function(data) {
+                        if (this.props.onRatingSaved) {
+                            this.props.onRatingSaved(data, this.props.movie);
+                        }
+                        if (this.props.onMovieChanged) {
+                            this.props.onMovieChanged(this.props.movie);
+                        }
+                    }.bind(this),
+                    error: function(xhr, status, err) {
+                        console.log(status, err);
+                    }.bind(this)
+                });
+
+            },
             render: function() {
+                var rating = (this.props.movie.rating ? this.props.movie.rating : -1);
+                var myRating = (this.props.movie.myRating ? this.props.movie.myRating.value : -1);
+
+                function buildStarClassNamesArray(rating) {
+                    var index = -1,
+                        value = -1;
+                        starClassNames = [];
+                    for (index = 0; index < 5; index++) {
+                        value = index + 1;
+                        if (rating >= value) {
+                            starClassNames.push('fa-star');
+                        } else {
+                            starClassNames.push('fa-star-o');
+                        }
+                    }
+                    return starClassNames;
+                }
+                var ratingStarClassNames = buildStarClassNamesArray(rating);
+                var myRatingStarClassNames = buildStarClassNamesArray(myRating);
                 return (
                     <tr>
                         <td>{this.props.movie.title}</td>
+                        <td>
+                            <i className={'fa ' + ratingStarClassNames[0]}></i>
+                            <i className={'fa ' + ratingStarClassNames[1]}></i>
+                            <i className={'fa ' + ratingStarClassNames[2]}></i>
+                            <i className={'fa ' + ratingStarClassNames[3]}></i>
+                            <i className={'fa ' + ratingStarClassNames[4]}></i>
+                        </td>
+                        <td>
+                            <a onClick={this.handleClickRating1}>
+                                <span style={{display: 'none'}}>1</span>
+                                <i className={'fa ' + myRatingStarClassNames[0]}></i>
+                            </a>
+                            <a onClick={this.handleClickRating2}>
+                                <span style={{display: 'none'}}>2</span>
+                                <i className={'fa ' + myRatingStarClassNames[1]}></i>
+                            </a>
+                            <a onClick={this.handleClickRating3}>
+                                <span style={{display: 'none'}}>3</span>
+                                <i className={'fa ' + myRatingStarClassNames[2]}></i>
+                            </a>
+                            <a onClick={this.handleClickRating4}>
+                                <span style={{display: 'none'}}>4</span>
+                                <i className={'fa ' + myRatingStarClassNames[3]}></i>
+                            </a>
+                            <a onClick={this.handleClickRating5}>
+                                <span style={{display: 'none'}}>5</span>
+                                <i className={'fa ' + myRatingStarClassNames[4]}></i>
+                            </a>
+                        </td>
                     </tr>
                 );
             }
         });
 
         var MovieList = React.createClass({
+            handleMovieChanged: function(movie) {
+                if (this.props.onMovieChanged) {
+                    this.props.onMovieChanged(movie);
+                }
+            },
             render: function() {
                 var rows = this.props.movies.map(function(movie) {
                     return (
-                        <MovieRow key={movie.movies_id} movie={movie} />
+                        <MovieRow key={movie.movies_id} movie={movie} onMovieChanged={this.handleMovieChanged} />
                     );
-                });
+                }.bind(this));
                 return (
-                    <table>
-                        {rows}
+                    <table className="table table-striped">
+                        <thead>
+                            <th>Title</th>
+                            <th>Rating</th>
+                            <th>My Rating</th>
+                        </thead>
+                        <tbody>
+                            {rows}
+                        </tbody>
                     </table>
                 );
             }
@@ -154,7 +254,7 @@
                             </div>
                             <div className="form-group">
                                 <div className="col-sm-offset-2 col-sm-10">
-                                    <button type="submit" className="btn btn-default">Create</button>
+                                    <button type="submit" className="btn btn-default">Add</button>
                                 </div>
                             </div>
                         </form>
@@ -165,6 +265,10 @@
 
         var MoviesPageView = React.createClass({
             handleMovieSaved: function(data) {
+                this.loadMoviesFromServer();
+            },
+            handleMovieChanged: function(movie) {
+                console.log('Movie changed; updating list');
                 this.loadMoviesFromServer();
             },
             getInitialState: function() {
@@ -179,7 +283,7 @@
                 return (
                     <div>
                         <AddMovieForm onMovieSaved={this.handleMovieSaved} />
-                        <MovieList movies={this.state.movies} />
+                        <MovieList movies={this.state.movies} onMovieChanged={this.handleMovieChanged} />
                     </div>
                 );
             },
@@ -202,7 +306,7 @@
 
         React.render(
             <div className="container">
-                <h1>Movies</h1>
+                <h1>Mo's Movies</h1>
                 <MoviesPageView />
             </div>,
         document.getElementById('c')

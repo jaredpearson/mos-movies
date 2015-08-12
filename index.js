@@ -12,6 +12,12 @@ var db = {
     }
 };
 
+var movieRatingsDataService = {
+    insert: function(client, done, movieId, contextUserId, rating) {
+        client.query('INSERT INTO movie_ratings (movie, created_by, value) VALUES ($1, $2, $3) RETURNING movie_ratings_id', [movieId, contextUserId, rating], done);
+    }
+};
+
 // middleware for authentication
 function auth(req, res, next) {
     if (!req.session.user_id) {
@@ -37,6 +43,17 @@ var handleDbError = function(response, client, done, err) {
     }
     showErrorPage(response, err);
     return true;
+};
+
+var validateMoveRatingValue = function(value) {
+    var valueAsNumber;
+    if (typeof value != 'number') {
+        value = parseInt(value);
+        if (typeof value != "number") {
+            return ['Rating should be a number'];
+        }
+    }
+    return [];
 };
 
 var app = express();
@@ -104,18 +121,39 @@ app.get('/movies', auth, function(request, response) {
 });
 
 app.get('/movies.json', auth, function(request, response) {
+    var contextUserId = request.session.user_id;
+
     db.connect(function(err, client, done) {
         if (handleDbError(response, client, done, err)) {
             return;
         }
 
-        client.query('SELECT movies_id, title FROM movies', function(err, result) {
+        client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN movie_ratings rating ON movies.movies_id = rating.movie WHERE rating.created_by IS NULL OR rating.created_by=$1 ORDER BY movies.title', [contextUserId], function(err, result) {
             if (handleDbError(response, client, done, err)) {
                 return;
             }
             done();
+
+            var processedResults = [];
+            result.rows.forEach(function(row) {
+                var movie = {
+                    movies_id: row.movies_id,
+                    title: row.title,
+                    rating: row.rating
+                };
+                if (row.movie_ratings_id) {
+                    movie.myRating = {
+                        movie_ratings_id: row.movie_ratings_id,
+                        movie: row.movies_id,
+                        created_by: row.created_by,
+                        value: row.value
+                    };
+                }
+                processedResults.push(movie);
+            });
+
             response.json({
-                results: result.rows
+                results: processedResults
             });
         });
     });
@@ -138,6 +176,14 @@ app.post('/movies.json', auth, function(request, response) {
         });
         return;
     }
+
+    var validationErrors = validateMoveRatingValue(rating);
+    if (validationErrors.length > 0) {
+        response.status(400).json({
+            error: validationErrors[0] // TODO allow for multiple error messages
+        });
+    }
+
 
     if (!contextUserId) {
         response.status(500).send();
@@ -182,17 +228,18 @@ app.post('/movies.json', auth, function(request, response) {
 
                     });
                 };
+                function handleMovieRatingInsertFinished() {
+                    if (handleDbError(response, client, done, err)) {
+                        return;
+                    }
+                    var movieRatingId = result.rows[0].movie_ratings_id;
+                    console.log('Inserted movie rating', movieRatingId);
+
+                    finished(movieRatingId);
+                };
 
                 if (rating) {
-                    client.query('INSERT INTO movie_ratings (movie, created_by, value) VALUES ($1, $2, $3) RETURNING movie_ratings_id', [movieId, contextUserId, rating], function(err, result) {
-                        if (handleDbError(response, client, done, err)) {
-                            return;
-                        }
-                        var movieRatingId = result.rows[0].movie_ratings_id;
-                        console.log('Inserted movie rating', movieRatingId);
-
-                        finished(movieRatingId);
-                    });
+                    movieRatingsDataService.insert(client, handleMovieRatingInsertFinished, movieId, contextUserId, rating);
                 } else {
                     finished(undefined);
                 }
@@ -201,6 +248,74 @@ app.post('/movies.json', auth, function(request, response) {
 
         });
     });
+});
+
+app.patch('/movies/:id.json', auth, function(request, response) {
+    var myRating = request.body.myRating,
+        movieId = request.params.id,
+        contextUserId = request.session.user_id;
+
+    if (!myRating) {
+        response.status(400).json({
+            error: 'myRating was not defined'
+        });
+        return;
+    }
+    var validationErrors = validateMoveRatingValue(myRating);
+    if (validationErrors.length > 0) {
+        response.status(400).json({
+            error: validationErrors[0] // TODO allow for multiple error messages
+        });
+    }
+
+    db.connect(function(err, client, done) {
+        if (handleDbError(response, client, done, err)) {
+            return;
+        }
+
+        function finished(movieRatingId) {
+            client.query('COMMIT', function(err) {
+                if (handleDbError(response, client, done, err)) {
+                    return;
+                }
+
+                done();
+                response.json({
+                    movie_ratings_id: movieRatingId
+                });
+
+            });
+        };
+
+        client.query('SELECT count(*) FROM movie_ratings WHERE movie = $1 AND created_by = $2', [movieId, contextUserId], function(err, result) {
+            if (handleDbError(response, client, done, err)) {
+                return;
+            }
+
+            function handleMovieRatingInsertFinished(err, result) {
+                if (handleDbError(response, client, done, err)) {
+                    return;
+                }
+                var movieRatingId = result.rows[0].movie_ratings_id;
+                console.log('Inserted movie rating', movieRatingId);
+
+                finished(movieRatingId);
+            };
+
+            if (result.rowCount > 0 && result.rows[0].count > 0) {
+                client.query('UPDATE movie_ratings SET value = $3 WHERE movie = $1 AND created_by = $2', [movieId, contextUserId, myRating], function(err) {
+                    if (handleDbError(response, client, done, err)) {
+                        return;
+                    }
+
+                    finished();
+                });
+            } else {
+                movieRatingsDataService.insert(client, handleMovieRatingInsertFinished, movieId, contextUserId, myRating);
+            }
+        });
+    });
+
 });
 
 app.get('/', function(request, response) {
