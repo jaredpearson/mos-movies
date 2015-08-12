@@ -6,6 +6,7 @@ var express = require('express'),
     session = require('express-session');
 
 var db = {
+
     connect: function(callback) {
         pg.connect(process.env.DATABASE_URL, callback);
     }
@@ -20,12 +21,30 @@ function auth(req, res, next) {
     }
 };
 
+function showErrorPage(response, err) {
+    console.log(err);
+    response.writeHead(500, {'content-type': 'text/plain'});
+    response.end('An error occurred');
+};
+
+var handleDbError = function(response, client, done, err) {
+    // no error occurred, continue with the request
+    if(!err) {
+        return false;
+    }
+    if(client){
+        done(client);
+    }
+    showErrorPage(response, err);
+    return true;
+};
+
 var app = express();
 
 app.set('port', (process.env.PORT || 5000));
 
 app.use(express.static(__dirname + '/public'));
-app.use( bodyParser.json() );
+app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
     extended: true
 }));
@@ -58,27 +77,12 @@ app.post('/login', function(request, response) {
     }
 
     db.connect(function(err, client, done) {
-
-        var handleError = function(err) {
-            // no error occurred, continue with the request
-            if(!err) {
-                return false;
-            }
-            if(client){
-                done(client);
-            }
-            console.log(err);
-            response.writeHead(500, {'content-type': 'text/plain'});
-            response.end('An error occurred');
-            return true;
-        };
-
-        if (handleError(err)) {
+        if (handleDbError(response, client, done, err)) {
             return;
         }
 
         client.query('SELECT users_id FROM users WHERE username=$1', [request.body.username], function(err, result) {
-            if (handleError(err)) {
+            if (handleDbError(response, client, done, err)) {
                 return;
             }
 
@@ -96,64 +100,105 @@ app.post('/login', function(request, response) {
 });
 
 app.get('/movies', auth, function(request, response) {
+    response.render('pages/movies');
+});
+
+app.get('/movies.json', auth, function(request, response) {
     db.connect(function(err, client, done) {
-        client.query('SELECT title FROM movies', function(err, result) {
-            done();
-            if (err) {
-                console.error(err);
-                response.sendStatus(500);
-            } else {
-                response.render('pages/movies', {
-                    movies: result.rows
-                });
+        if (handleDbError(response, client, done, err)) {
+            return;
+        }
+
+        client.query('SELECT movies_id, title FROM movies', function(err, result) {
+            if (handleDbError(response, client, done, err)) {
+                return;
             }
+            done();
+            response.json({
+                results: result.rows
+            });
         });
     });
 });
 
-app.post('/movies/new', auth, function(request, response) {
-    var title = request.body.title;
+app.post('/movies.json', auth, function(request, response) {
+    var title = request.body.title,
+        rating = request.body.rating,
+        contextUserId = request.session.user_id;
 
     if (!title) {
-        response.render('pages/movies', {
+        response.status(400).json({
             error: 'Title is required'
         });
         return;
     }
     if (title.length > 100) {
-        response.render('pages/movies', {
+        response.status(400).json({
             error: 'Title too long'
         });
         return;
     }
 
+    if (!contextUserId) {
+        response.status(500).send();
+        return;
+    }
+    console.log('Begin connection');
+
+    function rollback(client, done) {
+        client.query('ROLLBACK', function(err) {
+            return done(err);
+        });
+    };
+
     db.connect(function(err, client, done) {
-
-        var handleError = function(err) {
-            // no error occurred, continue with the request
-            if(!err) {
-                return false;
-            }
-            if(client){
-                done(client);
-            }
-            console.log(err);
-            response.writeHead(500, {'content-type': 'text/plain'});
-            response.end('An error occurred');
-            return true;
-        };
-
-        if (handleError(err)) {
+        if (handleDbError(response, client, done, err)) {
             return;
         }
-
-        client.query('INSERT INTO movies (title) VALUES ($1)', [title], function(err) {
-            if (handleError(err)) {
-                return;
+        client.query('BEGIN', function(err){
+            if (err) {
+                rollback(client, done);
             }
+            console.log('Transaction started');
 
-            done();
-            response.redirect('/movies');
+            client.query('INSERT INTO movies (title, created_by) VALUES ($1, $2) RETURNING movies_id', [title, contextUserId], function(err, result) {
+                if (handleDbError(response, client, done, err)) {
+                    return;
+                }
+                var movieId = result.rows[0].movies_id;
+                console.log('Inserted movie', movieId);
+
+                function finished(movieRatingId) {
+                    client.query('COMMIT', function(err) {
+                        if (handleDbError(response, client, done, err)) {
+                            return;
+                        }
+
+                        done();
+                        response.json({
+                            movies_id: movieId,
+                            movie_ratings_id: movieRatingId
+                        });
+
+                    });
+                };
+
+                if (rating) {
+                    client.query('INSERT INTO movie_ratings (movie, created_by, value) VALUES ($1, $2, $3) RETURNING movie_ratings_id', [movieId, contextUserId, rating], function(err, result) {
+                        if (handleDbError(response, client, done, err)) {
+                            return;
+                        }
+                        var movieRatingId = result.rows[0].movie_ratings_id;
+                        console.log('Inserted movie rating', movieRatingId);
+
+                        finished(movieRatingId);
+                    });
+                } else {
+                    finished(undefined);
+                }
+
+            });
+
         });
     });
 });

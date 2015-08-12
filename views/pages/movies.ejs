@@ -1,32 +1,212 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <% include ../partials/header.ejs %>
+    <% include ../partials/header.ejs %>
+
+    <script type="text/javascript" src="https://fb.me/react-0.13.3.js"></script>
+    <script type="text/javascript" src="https://fb.me/JSXTransformer-0.13.3.js"></script>
 </head>
 
 <body>
-    <div class="container">
-        <h1>Movies</h1>
-        <form action="/movies/new" method="POST" class="form-horizontal">
-            <div class="form-group">
-                <label for="title">Title</label>
-                <input type="text" class="form-control" id="title" name="title">
-            </div>
-            <div class="form-group">
-                <label for="rating">Rating</label>
-                <input type="text" class="form-control" id="rating" name="rating">
-            </div>
-            <button type="submit" class="btn btn-default">Create</button>
-        </form>
-        <% if (typeof movies != 'undefined') { %>
-            <table>
-                <% movies.forEach(function(movie) { %>
+    <div id="c"></div>
+    <script type="text/jsx">
+        function isNumber(value) {
+            return typeof value === "number" && 
+               isFinite(value) && 
+               Math.floor(value) === value;
+        }
+
+        var MovieRow = React.createClass({
+            render: function() {
+                return (
                     <tr>
-                        <td><%= movie.title %>
+                        <td>{this.props.movie.title}</td>
                     </tr>
-                <% }) %>
-            </table>
-        <% } %>
-    </div>
+                );
+            }
+        });
+
+        var MovieList = React.createClass({
+            render: function() {
+                var rows = this.props.movies.map(function(movie) {
+                    return (
+                        <MovieRow key={movie.movies_id} movie={movie} />
+                    );
+                });
+                return (
+                    <table>
+                        {rows}
+                    </table>
+                );
+            }
+        });
+
+        var ErrorMessageItem = React.createClass({
+            render: function() {
+                return (
+                    <div>{this.props.errorMessage}</div>
+                );
+            }
+        });
+
+        var ErrorMessages = React.createClass({
+            render: function() {
+                if (this.props.errorMessages && this.props.errorMessages.length > 0) {
+                    var items = this.props.errorMessages.map(function(errorMessage, i) {
+                        return (
+                            <ErrorMessageItem key={i} errorMessage={errorMessage} />
+                        );
+                    });
+                    return (
+                        <div>
+                            {items}
+                        </div>
+                    );
+                } else {
+                    return null;
+                }
+            }
+        });
+
+        var AddMovieForm = React.createClass({
+            getInitialState: function() {
+                return {
+                    errorMessages: []
+                };
+            },
+            handleSubmit: function(e) {
+                e.preventDefault();
+
+                var title = React.findDOMNode(this.refs.title).value.trim(),
+                    ratingAsString = React.findDOMNode(this.refs.rating).value.trim(),
+                    rating;
+                var newMovie;
+
+                // TODO add validation for title and rating
+                var validationErrorMessages = [];
+                if (!title) {
+                    validationErrorMessages.push('Title is a required field');
+                }
+                if (title && title.length > 100) {
+                    validationErrorMessages.push('Title must be less than 100 characters');
+                }
+                if (ratingAsString) {
+                    if (!isNumber(parseFloat(ratingAsString))) {
+                        validationErrorMessages.push('Rating must be a positive integer value');
+                    } else {
+                        rating = parseFloat(ratingAsString);
+                        if (rating % 1 == 0 && rating > 0) {
+                            rating = parseInt(ratingAsString, 10);
+                        } else {
+                            validationErrorMessages.push('Rating must be a positive integer value');
+                        }
+                    }
+                }
+                this.setState({
+                    errorMessages: validationErrorMessages
+                });
+                if (validationErrorMessages.length > 0) {
+                    return;
+                }
+
+                newMovie = {
+                    title: title,
+                    rating: rating
+                };
+
+                $.ajax({
+                    url: '/movies.json',
+                    dataType: 'json',
+                    type: 'POST',
+                    data: newMovie,
+                    success: function(data) {
+                        if (this.props.onMovieSaved) {
+                            this.props.onMovieSaved(data);
+                        }
+
+                        // clear the form fields
+                        React.findDOMNode(this.refs.title).value = '';
+                        React.findDOMNode(this.refs.rating).value = '';
+                    }.bind(this),
+                    error: function(xhr, status, err) {
+                        console.log(status, err);
+                    }.bind(this)
+                });
+
+                return;
+            },
+            render: function() {
+                return (
+                    <div>
+                        <ErrorMessages errorMessages={this.state.errorMessages} />
+                        <form className="form-horizontal" onSubmit={this.handleSubmit}>
+                            <div className="form-group">
+                                <label htmlFor="title" className="col-sm-2 control-label">Title</label>
+                                <div className="col-sm-10">
+                                    <input type="text" className="form-control" id="title" name="title" ref="title" />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="rating" className="col-sm-2 control-label">Rating</label>
+                                <div className="col-sm-10">
+                                    <input type="text" className="form-control" id="rating" name="rating" ref="rating" />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <div className="col-sm-offset-2 col-sm-10">
+                                    <button type="submit" className="btn btn-default">Create</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                );
+            }
+        });
+
+        var MoviesPageView = React.createClass({
+            handleMovieSaved: function(data) {
+                this.loadMoviesFromServer();
+            },
+            getInitialState: function() {
+                return {
+                    movies: []
+                };
+            },
+            componentDidMount: function() {
+                this.loadMoviesFromServer();
+            },
+            render: function() {
+                return (
+                    <div>
+                        <AddMovieForm onMovieSaved={this.handleMovieSaved} />
+                        <MovieList movies={this.state.movies} />
+                    </div>
+                );
+            },
+            loadMoviesFromServer: function() {
+                $.ajax({
+                    url: '/movies.json',
+                    dataType: 'json',
+                    cache: false,
+                    success: function(data) {
+                        this.setState({
+                            movies: data.results
+                        });
+                    }.bind(this),
+                    error: function(xhr, status, err) {
+                        console.err(status, err);
+                    }.bind(this)
+                });
+            }
+        });
+
+        React.render(
+            <div className="container">
+                <h1>Movies</h1>
+                <MoviesPageView />
+            </div>,
+        document.getElementById('c')
+        );
+    </script>
 </body>
 </html>
