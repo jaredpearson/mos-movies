@@ -57,6 +57,30 @@
                 });
 
             },
+            handleClickRemove: function(e) {
+                e.preventDefault();
+                var myRating = this.props.movie.myRating;
+
+                if (!myRating) {
+                    return;
+                }
+
+                $.ajax({
+                    url: '/movie-ratings/' + myRating.movie_ratings_id + '.json',
+                    type: 'DELETE',
+                    success: function(data) {
+                        if (this.props.onRatingRemoved) {
+                            this.props.onRatingRemoved(this.props.movie);
+                        }
+                        if (this.props.onMovieChanged) {
+                            this.props.onMovieChanged(this.props.movie);
+                        }
+                    }.bind(this),
+                    error: function(xhr, status, err) {
+                        console.log(status, err);
+                    }.bind(this)
+                });
+            },
             render: function() {
                 var rating = (this.props.movie.rating ? this.props.movie.rating : -1);
                 var myRating = (this.props.movie.myRating ? this.props.movie.myRating.value : -1);
@@ -77,17 +101,31 @@
                 }
                 var ratingStarClassNames = buildStarClassNamesArray(rating);
                 var myRatingStarClassNames = buildStarClassNamesArray(myRating);
+                var removeRatingEl;
+
+                // build the element for the remove rating only when a rating has been added
+                if (this.props.movie.myRating) {
+                    removeRatingEl = (
+                        <a className="ratingRemoveButton" onClick={this.handleClickRemove} alt="Remove" style={{'paddingLeft': '10px'}}>
+                            <span style={{display: 'none'}}>Remove</span>
+                            <i className={'fa fa-ban'}></i>
+                        </a>
+                    );
+                } else {
+                    removeRatingEl = null;
+                }
+
                 return (
-                    <tr>
+                    <tr className="movieRow">
                         <td>{this.props.movie.title}</td>
-                        <td>
+                        <td className="ratingCell">
                             <i className={'fa ' + ratingStarClassNames[0]}></i>
                             <i className={'fa ' + ratingStarClassNames[1]}></i>
                             <i className={'fa ' + ratingStarClassNames[2]}></i>
                             <i className={'fa ' + ratingStarClassNames[3]}></i>
                             <i className={'fa ' + ratingStarClassNames[4]}></i>
                         </td>
-                        <td>
+                        <td className="myRatingCell">
                             <a onClick={this.handleClickRating1}>
                                 <span style={{display: 'none'}}>1</span>
                                 <i className={'fa ' + myRatingStarClassNames[0]}></i>
@@ -108,6 +146,7 @@
                                 <span style={{display: 'none'}}>5</span>
                                 <i className={'fa ' + myRatingStarClassNames[4]}></i>
                             </a>
+                            {removeRatingEl}
                         </td>
                     </tr>
                 );
