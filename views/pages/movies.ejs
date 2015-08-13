@@ -41,7 +41,7 @@
                     removeRatingEl;
 
                 // build the element for the remove rating only when a rating has been added
-                if (this.props.showClear) {
+                if (this.props.showClear && value > 0) {
                     removeRatingEl = (
                         <a href="#" className="ratingRemoveButton" onClick={this.handleClickRemove} alt="Remove" style={{'paddingLeft': '10px'}}>
                             <span style={{display: 'none'}}>Remove</span>
