@@ -17,6 +17,65 @@
                Math.floor(value) === value;
         }
 
+        var StarRatingInput = React.createClass({
+            handleClickRating: function(value, e) {
+                e.preventDefault();
+
+                if (this.props.onRatingChange) {
+                    this.props.onRatingChange(value);
+                }
+            },
+            handleClickRemove: function(e) {
+                e.preventDefault();
+
+                if (this.props.onRatingCleared) {
+                    this.props.onRatingCleared();
+                }
+            },
+            render: function() {
+                var maxValue = this.props.maxValue || 5,
+                    value = this.props.value,
+                    starEls = [],
+                    index = -1,
+                    starClassName,
+                    removeRatingEl;
+
+                // build the element for the remove rating only when a rating has been added
+                if (this.props.showClear) {
+                    removeRatingEl = (
+                        <a href="#" className="ratingRemoveButton" onClick={this.handleClickRemove} alt="Remove" style={{'paddingLeft': '10px'}}>
+                            <span style={{display: 'none'}}>Remove</span>
+                            <i className={'fa fa-ban'}></i>
+                        </a>
+                    );
+                } else {
+                    removeRatingEl = null;
+                }
+
+                for (index = 0; index < maxValue; index++) {
+                    if (value >= index + 1) {
+                        starClassName = 'fa-star';
+                    } else {
+                        starClassName = 'fa-star-o';
+                    }
+
+                    starEls.push(
+                        <a key={index} href="#" onClick={this.handleClickRating.bind(this, index + 1)}>
+                            <span style={{display: 'none'}}>1</span>
+                            <i className={'fa ' + starClassName}></i>
+                        </a>
+                    );
+                }
+
+                return (
+                    <span className={this.props.className}>
+                        {starEls}
+                        {removeRatingEl}
+                    </span>
+                );
+            }
+        });
+
         var MovieRow = React.createClass({
             handleClickRating1: function(e) {
                 this.handleClickRating(e, 1);
@@ -210,15 +269,15 @@
         var AddMovieForm = React.createClass({
             getInitialState: function() {
                 return {
-                    errorMessages: []
+                    errorMessages: [],
+                    rating: 0
                 };
             },
             handleSubmit: function(e) {
                 e.preventDefault();
 
                 var title = React.findDOMNode(this.refs.title).value.trim(),
-                    ratingAsString = React.findDOMNode(this.refs.rating).value.trim(),
-                    rating;
+                    rating = this.state.rating;
                 var newMovie;
 
                 // TODO add validation for title and rating
@@ -229,17 +288,8 @@
                 if (title && title.length > 100) {
                     validationErrorMessages.push('Title must be less than 100 characters');
                 }
-                if (ratingAsString) {
-                    if (!isNumber(parseFloat(ratingAsString))) {
-                        validationErrorMessages.push('Rating must be a positive integer value');
-                    } else {
-                        rating = parseFloat(ratingAsString);
-                        if (rating % 1 == 0 && rating > 0) {
-                            rating = parseInt(ratingAsString, 10);
-                        } else {
-                            validationErrorMessages.push('Rating must be a positive integer value');
-                        }
-                    }
+                if (rating < 0 || rating > 5) {
+                    validationErrorMessages.push('Rating must be a a number between 1 and 5');
                 }
                 this.setState({
                     errorMessages: validationErrorMessages
@@ -249,9 +299,12 @@
                 }
 
                 newMovie = {
-                    title: title,
-                    rating: rating
+                    title: title
                 };
+
+                if (rating > 0) {
+                    newMovie.rating = rating;
+                }
 
                 $.ajax({
                     url: '/movies.json',
@@ -265,7 +318,10 @@
 
                         // clear the form fields
                         React.findDOMNode(this.refs.title).value = '';
-                        React.findDOMNode(this.refs.rating).value = '';
+                        this.setState({
+                            errorMessages: [],
+                            rating: 0
+                        });
                     }.bind(this),
                     error: function(xhr, status, err) {
                         console.log(status, err);
@@ -274,7 +330,20 @@
 
                 return;
             },
+            handleRatingChange: function(value) {
+                this.setState({
+                    rating: value
+                });
+            },
+            handleRatingCleared: function(value) {
+                // set the rating back to 0 when the rating is cleared
+                this.setState({
+                    rating: 0
+                });
+            },
             render: function() {
+                var showClear = this.state.rating > 0;
+
                 return (
                     <div>
                         <ErrorMessages errorMessages={this.state.errorMessages} />
@@ -288,7 +357,9 @@
                             <div className="form-group">
                                 <label htmlFor="rating" className="col-sm-2 control-label">Rating</label>
                                 <div className="col-sm-10">
-                                    <input type="text" className="form-control" id="rating" name="rating" ref="rating" />
+                                    <div style={{height: '34px', padding: '6px 12px'}}>
+                                        <StarRatingInput maxValue={5} value={this.state.rating} onRatingChange={this.handleRatingChange} showClear={showClear} onRatingCleared={this.handleRatingCleared} />
+                                    </div>
                                 </div>
                             </div>
                             <div className="form-group">
