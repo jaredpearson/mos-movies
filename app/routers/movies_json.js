@@ -4,23 +4,23 @@ var express = require('express'),
     router = express.Router(),
     auth = require('../middlewares/auth'),
     db = require('../db'),
-    movieRatingsDataService = require('../data_services/movie_ratings');
-
+    movieRatingsDataService = require('../data_services/movie_ratings'),
+    views = require('../views'), 
+    Q = require('q');
 
 router.get('/movies.json', auth, function(request, response) {
-    var contextUserId = request.session.user_id;
+    var contextUserId = request.session.user_id,
+        client;
 
-    db.connect(function(err, client, done) {
-        if (db.handleDbError(response, client, done, err)) {
-            return;
-        }
-
-        client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN (SELECT * FROM movie_ratings WHERE created_by=$1) rating ON movies.movies_id = rating.movie ORDER BY movies.title', [contextUserId], function(err, result) {
-            if (db.handleDbError(response, client, done, err)) {
-                return;
-            }
-            done();
-
+    db.connect()
+        .then(function(c) {
+            client = c;
+            return Q(c);
+        })
+        .then(function() {
+            return client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN (SELECT * FROM movie_ratings WHERE created_by=$1) rating ON movies.movies_id = rating.movie ORDER BY movies.title', [contextUserId]);
+        })
+        .then(function(result) {
             var processedResults = [];
             result.rows.forEach(function(row) {
                 var movie = {
@@ -42,14 +42,21 @@ router.get('/movies.json', auth, function(request, response) {
             response.json({
                 results: processedResults
             });
-        });
-    });
+        })
+        .fail(function(err) {
+            views.showErrorPage(response, err);
+        })
+        .fin(function() {
+            client.done();
+        })
+        .done();
 });
 
 router.post('/movies.json', auth, function(request, response) {
     var title = request.body.title,
         rating = request.body.rating,
-        contextUserId = request.session.user_id;
+        contextUserId = request.session.user_id,
+        client;
 
     if (!title) {
         response.status(400).json({
@@ -84,57 +91,62 @@ router.post('/movies.json', auth, function(request, response) {
         });
     };
 
-    db.connect(function(err, client, done) {
-        if (db.handleDbError(response, client, done, err)) {
-            return;
-        }
-        client.query('BEGIN', function(err){
-            if (err) {
-                rollback(client, done);
-            }
-            console.log('Transaction started');
+    var movieId,
+        movieRatingId;
 
-            client.query('INSERT INTO movies (title, created_by) VALUES ($1, $2) RETURNING movies_id', [title, contextUserId], function(err, result) {
-                if (db.handleDbError(response, client, done, err)) {
-                    return;
-                }
-                var movieId = result.rows[0].movies_id;
-                console.log('Inserted movie', movieId);
+    db.connect()
+        .then(function(c) {
+            client = c;
+            return Q(c);
+        })
+        .then(function() {
 
-                function finished(movieRatingId) {
-                    client.query('COMMIT', function(err) {
-                        if (db.handleDbError(response, client, done, err)) {
-                            return;
-                        }
+            return client.query('BEGIN')
+                .then(function() {
+                    console.log('Transaction started');
+                    return client.query('INSERT INTO movies (title, created_by) VALUES ($1, $2) RETURNING movies_id', [title, contextUserId]);
+                })
+                .then(function(result) {
+                    movieId = result.rows[0].movies_id;
+                    console.log('Inserted movie', movieId);
 
-                        done();
-                        response.json({
-                            movies_id: movieId,
-                            movie_ratings_id: movieRatingId
-                        });
-
-                    });
-                };
-                function handleMovieRatingInsertFinished() {
-                    if (db.handleDbError(response, client, done, err)) {
-                        return;
+                    if (rating) {
+                        return movieRatingsDataService.insert(client, movieId, contextUserId, rating);
+                    } else {
+                        return Q(undefined);
                     }
-                    var movieRatingId = result.rows[0].movie_ratings_id;
-                    console.log('Inserted movie rating', movieRatingId);
-
-                    finished(movieRatingId);
-                };
-
-                if (rating) {
-                    movieRatingsDataService.insert(client, handleMovieRatingInsertFinished, movieId, contextUserId, rating);
-                } else {
-                    finished(undefined);
-                }
-
+                })
+                .then(function(newMovieRatingId) {
+                    if (!newMovieRatingId) {
+                        return Q(undefined);
+                    }
+                    console.log('Inserted movie rating', newMovieRatingId);
+                    movieRatingId = newMovieRatingId;
+                    return Q(newMovieRatingId);
+                })
+                .then(function() {
+                    return client.query('COMMIT');
+                }, function(err) {
+                    console.log('Insert failed, rolling back transaction');
+                    return client.query('ROLLBACK')
+                        .then(function() {
+                            return Q.reject(err);
+                        });
+                });
+        })
+        .then(function() {
+            response.json({
+                movies_id: movieId,
+                movie_ratings_id: movieRatingId
             });
-
-        });
-    });
+        })
+        .fail(function(err) {
+            views.showErrorPage(response, err);
+        })
+        .fin(function() {
+            client.done();
+        })
+        .done();
 });
 
 module.exports.router = router;

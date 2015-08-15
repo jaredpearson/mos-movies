@@ -4,7 +4,9 @@ var express = require('express'),
     router = express.Router(),
     auth = require('../middlewares/auth'),
     db = require('../db'),
-    movieRatingsDataService = require('../data_services/movie_ratings');
+    movieRatingsDataService = require('../data_services/movie_ratings'),
+    views = require('../views'),
+    Q = require('Q');
 
 router.param('id', function(request, response, next, value) {
     if (!request.params) {
@@ -31,57 +33,36 @@ router.patch('/movies/:id.json', auth, function(request, response) {
         });
     }
 
-    db.connect(function(err, client, done) {
-        if (db.handleDbError(response, client, done, err)) {
-            return;
-        }
-
-        function finished(movieRatingId) {
-            client.query('COMMIT', function(err) {
-                if (db.handleDbError(response, client, done, err)) {
-                    return;
-                }
-
-                done();
-                response.json({
-                    movie_ratings_id: movieRatingId
-                });
-
-            });
-        };
-
-        console.log('Checking if movie rating already exists');
-        client.query('SELECT count(*) FROM movie_ratings WHERE movie = $1 AND created_by = $2', [movieId, contextUserId], function(err, result) {
-            if (db.handleDbError(response, client, done, err)) {
-                return;
-            }
-
-            function handleMovieRatingInsertFinished(err, result) {
-                if (db.handleDbError(response, client, done, err)) {
-                    return;
-                }
-                var movieRatingId = result.rows[0].movie_ratings_id;
-                console.log('Inserted movie rating', movieRatingId);
-
-                finished(movieRatingId);
-            };
-
-            if (result.rowCount > 0 && result.rows[0].count > 0) {
+    var client;
+    db.connect()
+        .then(function(c) {
+            client = c;
+            return Q(c);
+        })
+        .then(function() {
+            return movieRatingsDataService.hasUserRatedMovie(client, movieId, contextUserId);
+        })
+        .then(function(hasUserRatedMovie) {
+            if (hasUserRatedMovie) {
                 console.log('Updating rating');
-                client.query('UPDATE movie_ratings SET value = $3 WHERE movie = $1 AND created_by = $2', [movieId, contextUserId, myRating], function(err) {
-                    if (db.handleDbError(response, client, done, err)) {
-                        return;
-                    }
-
-                    finished();
-                });
+                return movieRatingsDataService.updateMovieRating(client, movieId, contextUserId, myRating);
             } else {
                 console.log('Inserting new rating');
-                movieRatingsDataService.insert(client, handleMovieRatingInsertFinished, movieId, contextUserId, myRating);
+                return movieRatingsDataService.insert(client, movieId, contextUserId, myRating);
             }
-        });
-    });
-
+        })
+        .then(function(movieRatingId) {
+            response.json({
+                movie_ratings_id: movieRatingId
+            });
+        })
+        .fail(function(err) {
+            views.showErrorPage(response, err);
+        })
+        .fin(function() {
+            client.done();
+        })
+        .done();
 });
 
 module.exports.router = router;
