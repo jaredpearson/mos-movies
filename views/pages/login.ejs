@@ -2,30 +2,43 @@
 <html>
 <head>
   <% include ../partials/header.ejs %>
+  <style>
+  .login-form-container {
+    width: 300px; 
+    border: 1px solid #777; 
+    border-radius: 0px 10px 10px 10px; 
+    padding: 2em; 
+    margin-top: 1em; 
+    background-color: white;
+    box-shadow: 5px 5px 5px rgba(119, 119, 119, 0.2);
+  }
+  </style>
 </head>
 
-<body>
+<body style="background-color: #5F5F5F;">
     <div class="container">
-        <% if(typeof error != 'undefined') { %>
-            <div class="bg-warning">
-                <%= error %>
-            </div>
-        <% } %>
+        <div class="center-block login-form-container">
+            <% if(typeof error != 'undefined') { %>
+                <div class="bg-warning">
+                    <%= error %>
+                </div>
+            <% } %>
 
-        <form action="/login" method="POST">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" class="form-control" id="username" name="username">
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" class="form-control" id="password" name="password">
-            </div>
-            <button type="submit" class="btn btn-default">Submit</button>
-        </form>
-        <script>
-            document.getElementById('username').focus();
-        </script>
+            <form action="/login" method="POST">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" class="form-control" id="username" name="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password">
+                </div>
+                <button type="submit" class="btn btn-default">Submit</button>
+            </form>
+            <script>
+                document.getElementById('username').focus();
+            </script>
+        </div>
     </div>
 </body>
 </html>
