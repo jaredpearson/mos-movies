@@ -8,8 +8,10 @@
     <script type="text/javascript" src="https://fb.me/JSXTransformer-0.13.3.js"></script>
 </head>
 
-<body>
-    <div id="c"></div>
+<body style="background-color: #5F5F5F;">
+    <div class="container" style="background-color: white;">
+        <div id="c"></div>
+    </div>
     <script type="text/jsx">
         function isNumber(value) {
             return typeof value === "number" && 
@@ -363,11 +365,11 @@
         });
 
         React.render(
-            <div className="container">
+            <div>
                 <h1>Mo's Movies</h1>
                 <MoviesPageView />
             </div>,
-        document.getElementById('c')
+            document.getElementById('c')
         );
     </script>
 </body>
