@@ -1,6 +1,6 @@
 'use strict';
 
-var Q = require('q')
+var Q = require('q');
 
 module.exports = {
     insert: function(client, movieId, contextUserId, rating) {
