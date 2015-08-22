@@ -45,9 +45,13 @@ module.exports = function(grunt) {
 
         less: {
             dist: {
-                files: {
-                    'dist/public/stylesheets/main.css': 'public/stylesheets/main.less'
-                }
+                files: [{
+                    expand: true,
+                    cwd: 'public/stylesheets/',
+                    src: '**.less',
+                    ext: '.css',
+                    dest: distDir + '/public/stylesheets'
+                }]
             }
         },
 
@@ -58,9 +62,13 @@ module.exports = function(grunt) {
                     comments: false,
                     compact: true
                 },
-                files: {
-                    'dist/public/javascript/movies.js': 'public/javascript/movies.jsx'
-                }
+                files: [{
+                    expand: true,
+                    cwd: 'public/javascript/',
+                    src: '**.jsx',
+                    ext: '.js',
+                    dest: distDir + '/public/javascript/'
+                }]
             }
         }
     });
