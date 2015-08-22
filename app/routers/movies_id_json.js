@@ -6,7 +6,7 @@ var express = require('express'),
     db = require('../db'),
     movieRatingsDataService = require('../data_services/movie_ratings'),
     views = require('../views'),
-    Q = require('Q');
+    Q = require('q');
 
 router.param('id', function(request, response, next, value) {
     if (!request.params) {
