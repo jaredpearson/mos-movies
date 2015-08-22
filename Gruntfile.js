@@ -31,7 +31,7 @@ module.exports = function(grunt) {
                     }, {
                         expand: true,
                         cwd: 'public/',
-                        src: '**',
+                        src: ['**/*', '!**/*.jsx', '!**/*.less'],
                         dest: distDir + '/public'
                     }, {
                         expand: true,
@@ -40,6 +40,14 @@ module.exports = function(grunt) {
                         dest: distDir + '/views'
                     }
                 ]
+            }
+        },
+
+        less: {
+            dist: {
+                files: {
+                    'dist/public/stylesheets/main.css': 'public/stylesheets/main.less'
+                }
             }
         },
 
@@ -59,8 +67,9 @@ module.exports = function(grunt) {
 
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-copy');
+    grunt.loadNpmTasks('grunt-contrib-less');
     grunt.loadNpmTasks('grunt-mkdir');
     grunt.loadNpmTasks('grunt-babel');
 
-    grunt.registerTask('dist', ['mkdir:dist', 'copy:dist', 'babel:dist']);
+    grunt.registerTask('dist', ['mkdir:dist', 'copy:dist', 'babel:dist', 'less:dist']);
 };

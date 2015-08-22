@@ -19,6 +19,7 @@
     "grunt-babel": "^5.0.1",
     "grunt-contrib-clean": "^0.6.0",
     "grunt-contrib-copy": "^0.8.0",
+    "grunt-contrib-less": "^1.0.1",
     "grunt-mkdir": "^0.1.2",
     "pg": "4.x",
     "q": "^1.4.1"
