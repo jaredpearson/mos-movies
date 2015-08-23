@@ -162,7 +162,7 @@ var MovieList = React.createClass({
         return (
             <table className="table table-striped">
                 <thead>
-                    <th>Title</th>
+                    <th><a href="#">Title <i className="fa fa-sort-desc"></i></a></th>
                     <th>Rating</th>
                     <th>My Rating</th>
                 </thead>
