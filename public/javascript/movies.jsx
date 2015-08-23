@@ -191,7 +191,7 @@ var ErrorMessages = React.createClass({
                 );
             });
             return (
-                <div>
+                <div className="alert alert-danger">
                     {items}
                 </div>
             );
