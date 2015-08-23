@@ -147,10 +147,39 @@ var MovieRow = React.createClass({
     }
 });
 
+var ColumnHeader = React.createClass({
+    handleClick: function(e) {
+        e.preventDefault();
+        if (this.props.onClick) {
+            this.props.onClick(this.props.sortKey);
+        }
+    },
+    render: function() {
+        var chevronEl;
+
+        if (this.props.selected) {
+            if (this.props.selectedDirection === 'asc') {
+                chevronEl = (<i className="fa fa-sort-asc"></i>);
+            } else {
+                chevronEl = (<i className="fa fa-sort-desc"></i>);
+            }
+        }
+
+        return (
+            <a href="#" onClick={this.handleClick}>{this.props.label} {chevronEl}</a>
+        );
+    }
+});
+
 var MovieList = React.createClass({
     handleMovieChanged: function(movie) {
         if (this.props.onMovieChanged) {
             this.props.onMovieChanged(movie);
+        }
+    },
+    handleSortChanged: function(sortKey) {
+        if (this.props.onSortChanged) {
+            this.props.onSortChanged(sortKey);
         }
     },
     render: function() {
@@ -159,12 +188,13 @@ var MovieList = React.createClass({
                 <MovieRow key={movie.movies_id} movie={movie} onMovieChanged={this.handleMovieChanged} />
             );
         }.bind(this));
+
         return (
-            <table className="table table-striped">
+            <table className="table table-striped movieList">
                 <thead>
-                    <th><a href="#">Title <i className="fa fa-sort-desc"></i></a></th>
-                    <th>Rating</th>
-                    <th>My Rating</th>
+                    <th><ColumnHeader sortKey="title" label="Title" selected={this.props.sortKey === 'title'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
+                    <th><ColumnHeader sortKey="rating" label="Rating" selected={this.props.sortKey === 'rating'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
+                    <th><ColumnHeader sortKey="myRating" label="My Rating" selected={this.props.sortKey === 'myRating'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
                 </thead>
                 <tbody>
                     {rows}
@@ -316,9 +346,29 @@ var MoviesPageView = React.createClass({
         console.log('Movie changed; updating list');
         this.loadMoviesFromServer();
     },
+    handleSortChanged: function(sortKey) {
+        console.log('Sort changed; updating list');
+        var stateObj = {
+            sortKey: sortKey
+        };
+
+        if (this.state.sortKey === sortKey) {
+            if (this.state.sortDirection === 'asc') {
+                stateObj.sortDirection = 'desc';
+            } else {
+                stateObj.sortDirection = 'asc';
+            }
+        } 
+
+        this.setState(stateObj, function() {
+            this.loadMoviesFromServer();
+        });
+    },
     getInitialState: function() {
         return {
-            movies: []
+            movies: [],
+            sortKey: 'title',
+            sortDirection: 'asc'
         };
     },
     componentDidMount: function() {
@@ -328,7 +378,7 @@ var MoviesPageView = React.createClass({
         return (
             <div>
                 <AddMovieForm onMovieSaved={this.handleMovieSaved} />
-                <MovieList movies={this.state.movies} onMovieChanged={this.handleMovieChanged} />
+                <MovieList movies={this.state.movies} sortKey="title" onMovieChanged={this.handleMovieChanged} onSortChanged={this.handleSortChanged} sortKey={this.state.sortKey} sortDirection={this.state.sortDirection} />
             </div>
         );
     },
@@ -337,6 +387,11 @@ var MoviesPageView = React.createClass({
             url: '/movies.json',
             dataType: 'json',
             cache: false,
+            data: {
+                sortKey: this.state.sortKey,
+                sortDirection: this.state.sortDirection
+            },
+            method: 'GET',
             success: function(data) {
                 this.setState({
                     movies: data.results

@@ -10,7 +10,46 @@ var express = require('express'),
 
 router.get('/movies.json', auth, function(request, response) {
     var contextUserId = request.session.user_id,
-        client;
+        client,
+        orderBy,
+        sortDirection;
+
+    if (!request.query.sortDirection) {
+        sortDirection = 'ASC';
+    } else {
+        // make sure sortDirection is one of the allowed values
+        switch ((request.query.sortDirection || '').toLowerCase()) {
+            case 'desc':
+                sortDirection = 'DESC';
+                break;
+            case 'asc':
+                sortDirection = 'ASC';
+                break;
+            default:
+                response.status(400).send('Value of sortDirection is not known.');
+                return;
+        }
+    }
+
+    if (!request.query.sortKey) {
+        orderBy = 'movies.title ' + sortDirection;
+    } else {
+        // make sure sortKey is one of the allowed values
+        switch ((request.query.sortKey || '').toLowerCase()) {
+            case 'title':
+                orderBy = 'movies.title ' + sortDirection;
+                break;
+            case 'rating':
+                orderBy = 'rating ' + sortDirection + ' NULLS LAST, movies.title ASC';
+                break;
+            case 'myrating':
+                orderBy = 'rating.value ' + sortDirection + ' NULLS LAST, movies.title ASC';
+                break;
+            default: 
+                response.status(400).send('Value of sortKey is not known.');
+                return;
+        }
+    }
 
     db.connect()
         .then(function(c) {
@@ -18,7 +57,7 @@ router.get('/movies.json', auth, function(request, response) {
             return Q(c);
         })
         .then(function() {
-            return client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN (SELECT * FROM movie_ratings WHERE created_by=$1) rating ON movies.movies_id = rating.movie ORDER BY movies.title', [contextUserId]);
+            return client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN (SELECT * FROM movie_ratings WHERE created_by=$1) rating ON movies.movies_id = rating.movie ORDER BY ' + orderBy, [contextUserId]);
         })
         .then(function(result) {
             var processedResults = [];

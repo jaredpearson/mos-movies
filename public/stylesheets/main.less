@@ -1,19 +1,27 @@
 
-.movieRow {
 
-    .ratingCell {
-      width: 10em;
+.movieList {
+    th a {
+        color: black;
     }
 
-    .myRatingCell {
-      width: 10em;
+    .movieRow {
+
+        .ratingCell {
+            width: 10em;
+        }
+
+        .myRatingCell {
+            width: 10em;
+        }
+
+        .ratingRemoveButton {
+            display: none;
+        }
+
+        &:hover .ratingRemoveButton {
+            display: inline;
+        }
     }
 
-    .ratingRemoveButton {
-      display: none;
-    }
-
-    &:hover .ratingRemoveButton {
-      display: inline;
-    }
 }
