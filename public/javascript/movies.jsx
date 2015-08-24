@@ -290,6 +290,16 @@ var AddMovieForm = React.createClass({
             }.bind(this),
             error: function(xhr, status, err) {
                 console.log(status, err);
+
+                if (xhr.status === 400) {
+                    this.setState({
+                        errorMessages: [xhr.responseJSON.error]
+                    });
+                } else {
+                    this.setState({
+                        errorMessage: ['Unexpected error occurred']
+                    });
+                }
             }.bind(this)
         });
 

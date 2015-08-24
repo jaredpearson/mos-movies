@@ -5,6 +5,7 @@ var express = require('express'),
     auth = require('../middlewares/auth'),
     db = require('../db'),
     movieRatingsDataService = require('../data_services/movie_ratings'),
+    moviesDataService = require('../data_services/movies'),
     views = require('../views'), 
     Q = require('q');
 
@@ -97,6 +98,10 @@ router.post('/movies.json', auth, function(request, response) {
         contextUserId = request.session.user_id,
         client;
 
+    if (!contextUserId) {
+        response.status(500).send();
+        return;
+    }
     if (!title) {
         response.status(400).json({
             error: 'Title is required'
@@ -111,32 +116,36 @@ router.post('/movies.json', auth, function(request, response) {
     }
 
     var validationErrors = movieRatingsDataService.validateMovieRatingValue(rating);
+
     if (validationErrors.length > 0) {
         response.status(400).json({
             error: validationErrors[0] // TODO allow for multiple error messages
         });
     }
 
-
-    if (!contextUserId) {
-        response.status(500).send();
-        return;
-    }
-    console.log('Begin connection');
-
-    function rollback(client, done) {
-        client.query('ROLLBACK', function(err) {
-            return done(err);
-        });
-    };
-
     var movieId,
         movieRatingId;
+
+    console.log('Begin connection');
 
     db.connect()
         .then(function(c) {
             client = c;
             return Q(c);
+        })
+        .then(function() {
+            // check for movies with the same title
+            return moviesDataService.findSimilar(client, title)
+                .then(function(result) {
+                    if (result.rowCount > 0) {
+                        return Q.reject({
+                            error: 'Duplicate found',
+                            duplicateMovies: result.rows
+                        });
+                    } else {
+                        return Q();
+                    }
+                });
         })
         .then(function() {
 
@@ -180,10 +189,16 @@ router.post('/movies.json', auth, function(request, response) {
             });
         })
         .fail(function(err) {
-            views.showErrorPage(response, err);
+            if (err.error) {
+                response.status(400).json(err);
+            } else {
+                views.showErrorPage(response, err);
+            }
         })
         .fin(function() {
-            client.done();
+            if (client) {
+                client.done();
+            }
         })
         .done();
 });
