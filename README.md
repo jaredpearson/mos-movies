@@ -12,6 +12,8 @@ To use the app, you will need to have the DB setup. See the Database instruction
     npm start 
 
 ## Database
-The app uses PostgreSQL. The database can be rebuilt by executing each of the files in the `sql` folder in order.
+The app is designed for PostgreSQL and will use the `DATABASE_URL` environment property to connect.
 
-    psql -f v001___initial.sql
+To update the database to the latest version
+
+    node sql/migrate
