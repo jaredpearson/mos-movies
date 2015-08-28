@@ -1,0 +1,15 @@
+{
+    "name": "Mo's Movies",
+    "description": "A website to track movie ratings for yourself and your friends.",
+    "scripts": {
+        "postdeploy": "node sql/migrate"
+    },
+    "addons": [
+        "heroku-postgresql"
+    ],
+    "buildpacks": [
+        {
+            "url": "https://github.com/heroku/heroku-buildpack-nodejs"
+        }
+    ]
+}

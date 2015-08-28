@@ -17,3 +17,8 @@ The app is designed for PostgreSQL and will use the `DATABASE_URL` environment p
 To update the database to the latest version
 
     node sql/migrate
+
+## Heroku Button
+Deploy to Heroku by clicking the following button:
+
+[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://git.soma.salesforce.com/jared-pearson/mos-movies)
