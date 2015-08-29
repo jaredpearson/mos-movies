@@ -9,11 +9,24 @@ var express = require('express'),
     views = require('../views'), 
     Q = require('q');
 
+function strictParseInt(value) {
+    if(/^(\-|\+)?([0-9]+)$/.test(value)) {
+        return Number(value);
+    }
+    return NaN;
+}
+function isNumeric(value) {
+    return !isNaN(parseFloat(value)) && isFinite(value);
+}
+
 router.get('/movies.json', auth, function(request, response) {
     var contextUserId = request.session.user_id,
+        offset,
         client,
         orderBy,
-        sortDirection;
+        sortKey,
+        sortDirection,
+        limit;
 
     if (!request.query.sortDirection) {
         sortDirection = 'ASC';
@@ -33,22 +46,42 @@ router.get('/movies.json', auth, function(request, response) {
     }
 
     if (!request.query.sortKey) {
-        orderBy = 'movies.title ' + sortDirection;
+        orderBy = 'title';
     } else {
-        // make sure sortKey is one of the allowed values
-        switch ((request.query.sortKey || '').toLowerCase()) {
-            case 'title':
-                orderBy = 'movies.title ' + sortDirection;
-                break;
-            case 'rating':
-                orderBy = 'rating ' + sortDirection + ' NULLS LAST, movies.title ASC';
-                break;
-            case 'myrating':
-                orderBy = 'rating.value ' + sortDirection + ' NULLS LAST, movies.title ASC';
-                break;
-            default: 
-                response.status(400).send('Value of sortKey is not known.');
-                return;
+        sortKey = request.query.sortKey;
+    }
+    // convert sortKey to one of the allowed values
+    switch ((request.query.sortKey || '').toLowerCase()) {
+        case 'title':
+            orderBy = 'movies.title ' + sortDirection + ' NULLS LAST, movies.movies_id ASC';
+            break;
+        case 'rating':
+            orderBy = 'rating ' + sortDirection + ' NULLS LAST, movies.title ASC, movies.movies_id ASC';
+            break;
+        case 'myrating':
+            orderBy = 'rating.value ' + sortDirection + ' NULLS LAST, movies.title ASC, movies.movies_id ASC';
+            break;
+        default: 
+            response.status(400).send('Value of sortKey is not known.');
+            return;
+    }
+
+    if (!request.query.offset) {
+        offset = 0;
+    } else {
+        offset = strictParseInt(request.query.offset);
+        if (!isNumeric(offset)) {
+            response.setStatus(400).send('Value of offset is not a number.');
+            return;
+        }
+    }
+
+    if (!request.query.limit) {
+        limit = 100;
+    } else {
+        limit = strictParseInt(request.query.limit);
+        if (!isNumeric(limit)) {
+            response.setStatus(400).send('Value of limit is not a number.');
         }
     }
 
@@ -58,30 +91,10 @@ router.get('/movies.json', auth, function(request, response) {
             return Q(c);
         })
         .then(function() {
-            return client.query('SELECT movies.movies_id, movies.title, (SELECT avg(rating1.value) FROM movie_ratings rating1 WHERE rating1.movie = movies.movies_id) AS rating, rating.movie_ratings_id, rating.created_by, rating.value FROM movies movies LEFT OUTER JOIN (SELECT * FROM movie_ratings WHERE created_by=$1) rating ON movies.movies_id = rating.movie ORDER BY ' + orderBy, [contextUserId]);
+            return moviesDataService.getAllMoviesPage(client, contextUserId, orderBy, limit, offset);
         })
         .then(function(result) {
-            var processedResults = [];
-            result.rows.forEach(function(row) {
-                var movie = {
-                    movies_id: row.movies_id,
-                    title: row.title,
-                    rating: row.rating
-                };
-                if (row.movie_ratings_id) {
-                    movie.myRating = {
-                        movie_ratings_id: row.movie_ratings_id,
-                        movie: row.movies_id,
-                        created_by: row.created_by,
-                        value: row.value
-                    };
-                }
-                processedResults.push(movie);
-            });
-
-            response.json({
-                results: processedResults
-            });
+            response.json(result);
         })
         .fail(function(err) {
             views.showErrorPage(response, err);

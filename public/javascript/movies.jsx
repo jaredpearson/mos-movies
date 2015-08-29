@@ -63,6 +63,64 @@ var StarRatingInput = React.createClass({
     }
 });
 
+var Pagination = React.createClass({
+    handlePreviousClick: function(e) {
+        e.preventDefault();
+        if (!this.hasPrevious()) {
+            return;
+        }
+
+        if (this.props.onChange) {
+            this.props.onChange({
+                offset: Math.max(this.props.offset - this.props.limit, 0)
+            });
+        }
+    },
+    handleNextClick: function(e) {
+        e.preventDefault();
+        if (!this.hasNext()) {
+            return;
+        }
+
+        if (this.props.onChange) {
+            this.props.onChange({
+                offset: Math.min(this.props.offset + this.props.limit, this.props.total)
+            });
+        }
+    },
+    hasNext: function() {
+        return this.props.offset + this.props.limit < this.props.total;
+    },
+    hasPrevious: function() {
+        return this.props.offset > 0;
+    },
+    render: function() {
+        var previousButton,
+            nextButton;
+
+        previousButton = (
+            <li className={(this.hasPrevious()) ? '' : 'disabled'}>
+                <a href="#" aria-label="Previous" onClick={this.handlePreviousClick}><span aria-hidden="true">&laquo;</span></a>
+            </li>
+        );
+
+        nextButton = (
+            <li className={(this.hasNext()) ? '' : 'disabled'}>
+                <a href="#" aria-label="Next" onClick={this.handleNextClick}><span aria-hidden="true">&raquo;</span></a>
+            </li>
+        );
+
+        return (
+            <div className={this.props.className}>
+                <ul className="pagination">
+                    {previousButton}
+                    {nextButton}
+                </ul>
+            </div>
+        );
+    }
+});
+
 var MovieRow = React.createClass({
     handleClickRating: function(value) {
         $.ajax({
@@ -182,24 +240,45 @@ var MovieList = React.createClass({
             this.props.onSortChanged(sortKey);
         }
     },
+    handlePageChange: function(e) {
+        if (this.props.onPageChange) {
+            this.props.onPageChange(e);
+        }
+    },
     render: function() {
-        var rows = this.props.movies.map(function(movie) {
+        var rows;
+
+        rows = this.props.movies.map(function(movie) {
             return (
                 <MovieRow key={movie.movies_id} movie={movie} onMovieChanged={this.handleMovieChanged} />
             );
         }.bind(this));
 
         return (
-            <table className="table table-striped movieList">
-                <thead>
-                    <th><ColumnHeader sortKey="title" label="Title" selected={this.props.sortKey === 'title'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
-                    <th><ColumnHeader sortKey="rating" label="Rating" selected={this.props.sortKey === 'rating'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
-                    <th><ColumnHeader sortKey="myRating" label="My Rating" selected={this.props.sortKey === 'myRating'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
-                </thead>
-                <tbody>
-                    {rows}
-                </tbody>
-            </table>
+            <div>
+                <Pagination
+                    className="text-right"
+                    onChange={this.handlePageChange}
+                    offset={this.props.offset}
+                    total={this.props.numberOfMovies}
+                    limit={this.props.limit} />
+                <table className="table table-striped movieList">
+                    <thead>
+                        <th><ColumnHeader sortKey="title" label="Title" selected={this.props.sortKey === 'title'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
+                        <th><ColumnHeader sortKey="rating" label="Rating" selected={this.props.sortKey === 'rating'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
+                        <th><ColumnHeader sortKey="myRating" label="My Rating" selected={this.props.sortKey === 'myRating'} selectedDirection={this.props.sortDirection} onClick={this.handleSortChanged} /></th>
+                    </thead>
+                    <tbody>
+                        {rows}
+                    </tbody>
+                </table>
+                <Pagination
+                    className="text-center"
+                    onChange={this.handlePageChange}
+                    offset={this.props.offset}
+                    total={this.props.numberOfMovies}
+                    limit={this.props.limit} />
+            </div>
         );
     }
 });
@@ -372,13 +451,24 @@ var MoviesPageView = React.createClass({
 
         this.setState(stateObj, function() {
             this.loadMoviesFromServer();
-        });
+        }.bind(this));
+    },
+    handlePageChange: function(options) {
+        var stateObj = {
+            offset: options.offset || 0
+        };
+        this.setState(stateObj, function() {
+            this.loadMoviesFromServer();
+        }.bind(this));
     },
     getInitialState: function() {
         return {
             movies: [],
             sortKey: 'title',
-            sortDirection: 'asc'
+            sortDirection: 'asc',
+            offset: 0,
+            limit: 100,
+            numberOfMovies: 0
         };
     },
     componentDidMount: function() {
@@ -388,7 +478,17 @@ var MoviesPageView = React.createClass({
         return (
             <div>
                 <AddMovieForm onMovieSaved={this.handleMovieSaved} />
-                <MovieList movies={this.state.movies} sortKey="title" onMovieChanged={this.handleMovieChanged} onSortChanged={this.handleSortChanged} sortKey={this.state.sortKey} sortDirection={this.state.sortDirection} />
+                <MovieList
+                    movies={this.state.movies}
+                    sortKey="title"
+                    onMovieChanged={this.handleMovieChanged}
+                    onSortChanged={this.handleSortChanged}
+                    sortKey={this.state.sortKey}
+                    sortDirection={this.state.sortDirection}
+                    offset={this.state.offset}
+                    limit={this.state.limit}
+                    numberOfMovies={this.state.numberOfMovies}
+                    onPageChange={this.handlePageChange} />
             </div>
         );
     },
@@ -399,12 +499,17 @@ var MoviesPageView = React.createClass({
             cache: false,
             data: {
                 sortKey: this.state.sortKey,
-                sortDirection: this.state.sortDirection
+                sortDirection: this.state.sortDirection,
+                offset: this.state.offset,
+                limit: this.state.limit
             },
             method: 'GET',
             success: function(data) {
                 this.setState({
-                    movies: data.results
+                    movies: data.results,
+                    numberOfMovies: data.numberOfMovies,
+                    offset: data.offset,
+                    limit: data.limit
                 });
             }.bind(this),
             error: function(xhr, status, err) {
