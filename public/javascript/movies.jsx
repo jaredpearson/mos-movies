@@ -30,9 +30,8 @@ var StarRatingInput = React.createClass({
         // build the element for the remove rating only when a rating has been added
         if (this.props.showClear && value > 0) {
             removeRatingEl = (
-                <a href="#" className="ratingRemoveButton" onClick={this.handleClickRemove} alt="Remove" style={{'paddingLeft': '10px'}}>
-                    <span style={{display: 'none'}}>Remove</span>
-                    <i className={'fa fa-ban'}></i>
+                <a href="#" className="ratingRemoveButton" onClick={this.handleClickRemove} alt="Remove Rating" aria-label="Remove Rating">
+                    <i aria-hidden="true" className={'fa fa-ban'}></i>
                 </a>
             );
         } else {
@@ -47,9 +46,8 @@ var StarRatingInput = React.createClass({
             }
 
             starEls.push(
-                <a key={index} href="#" onClick={this.handleClickRating.bind(this, index + 1)}>
-                    <span style={{display: 'none'}}>1</span>
-                    <i className={'fa ' + starClassName}></i>
+                <a key={index} href="#" onClick={this.handleClickRating.bind(this, index + 1)} aria-label={(index + 1)+ ' star'}>
+                    <i aria-hidden="true" className={'fa ' + starClassName}></i>
                 </a>
             );
         }
@@ -191,11 +189,13 @@ var MovieRow = React.createClass({
             <tr className="movieRow">
                 <td>{this.props.movie.title}</td>
                 <td className="ratingCell">
-                    <i className={'fa ' + ratingStarClassNames[0]}></i>
-                    <i className={'fa ' + ratingStarClassNames[1]}></i>
-                    <i className={'fa ' + ratingStarClassNames[2]}></i>
-                    <i className={'fa ' + ratingStarClassNames[3]}></i>
-                    <i className={'fa ' + ratingStarClassNames[4]}></i>
+                    <span aria-label={Math.max(rating, 0) + ' stars'}>
+                        <i aria-hidden="true" className={'fa ' + ratingStarClassNames[0]}></i>
+                        <i aria-hidden="true" className={'fa ' + ratingStarClassNames[1]}></i>
+                        <i aria-hidden="true" className={'fa ' + ratingStarClassNames[2]}></i>
+                        <i aria-hidden="true" className={'fa ' + ratingStarClassNames[3]}></i>
+                        <i aria-hidden="true" className={'fa ' + ratingStarClassNames[4]}></i>
+                    </span>
                 </td>
                 <td className="myRatingCell">
                     <StarRatingInput maxValue={5} value={myRating} onRatingChange={this.handleClickRating} showClear={true} onRatingCleared={this.handleClickRemove} />
@@ -213,18 +213,20 @@ var ColumnHeader = React.createClass({
         }
     },
     render: function() {
-        var chevronEl;
+        var chevronEl,
+            label = 'Ascending';
 
         if (this.props.selected) {
             if (this.props.selectedDirection === 'asc') {
-                chevronEl = (<i className="fa fa-sort-asc"></i>);
+                chevronEl = (<i aria-hidden={true} className="fa fa-sort-asc"></i>);
             } else {
-                chevronEl = (<i className="fa fa-sort-desc"></i>);
+                chevronEl = (<i aria-hidden={true} className="fa fa-sort-desc"></i>);
+                label = 'Descending';
             }
         }
 
         return (
-            <a href="#" onClick={this.handleClick}>{this.props.label} {chevronEl}</a>
+            <a href="#" aria-label={'Change sort to ' + this.props.label + ' ' + label} onClick={this.handleClick}>{this.props.label} {chevronEl}</a>
         );
     }
 });

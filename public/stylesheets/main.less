@@ -1,4 +1,39 @@
 
+@background: #5F5F5F;
+
+.box-shadow(@style) {
+    -webkit-box-shadow: @style;
+    -moz-box-shadow: @style;
+    box-shadow: @style;
+}
+.border-radius(@topleft, @topright, @bottomright, @bottomleft) {
+    -webkit-border-radius: @topleft @topright @bottomright @bottomleft;
+    -moz-border-radius: @topleft @topright @bottomright @bottomleft;
+    border-radius: @topleft @topright @bottomright @bottomleft;
+}
+
+body {
+    background-color: @background;
+
+    &.movies-page {
+        .container {
+            background-color: white;
+        }
+    }
+
+    &.login-page {
+        .login-form-container {
+            width: 300px;
+            border: 1px solid #777;
+            .border-radius(0px, 10px, 10px, 10px);
+            padding: 2em;
+            margin-top: 1em;
+            background-color: white;
+            .box-shadow(5px 5px 5px rgba(119, 119, 119, 0.2));
+        }
+    }
+}
+
 
 .movieList {
     th a {
@@ -24,4 +59,8 @@
         }
     }
 
+}
+
+.ratingRemoveButton {
+    padding-left: 10px;
 }
