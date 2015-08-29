@@ -2,11 +2,13 @@
 'use strict';
 
 var pg = require('pg'),
-    Q = require('q');
+    Q = require('q'),
+    pgconnect = Q.nbind(pg.connect, pg);
 
 function ClientPromise(client, done) {
     this._client = client;
     this._done = done;
+    this._pgquery = Q.nbind(client.query, client);
 }
 ClientPromise.prototype.done = function done() {
     this._done(this._client);
@@ -16,34 +18,14 @@ ClientPromise.prototype.done = function done() {
  * @returns {Promise} resolves to the result as returned by pg
  */
 ClientPromise.prototype.query = function query() {
-    var queryArgs = Array.prototype.slice.call(arguments),
-        deferred = Q.defer();
-
-    queryArgs.push(function handleQuery(err, result) {
-        if (err) {
-            deferred.reject(err);
-        } else {
-            deferred.resolve(result);
-        }
-    }.bind(this));
-
-    this._client.query.apply(this._client, queryArgs);
-
-    return deferred.promise;
+    return this._pgquery.apply(this._client, arguments);
 };
 
 module.exports = {
     connect: function() {
-        var deferred = Q.defer();
-
-        pg.connect(process.env.DATABASE_URL, function connect(err, client, done) {
-            if (err) {
-                deferred.reject(err);
-            } else {
-                deferred.resolve(new ClientPromise(client, done));
-            }
-        });
-
-        return deferred.promise;
+        return pgconnect(process.env.DATABASE_URL)
+            .spread(function(client, done) {
+                return Q.resolve(new ClientPromise(client, done));
+            });
     }
 };
