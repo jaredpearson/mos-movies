@@ -1,6 +1,8 @@
 # Mo's Movies
 Application to track movie ratings.
 
+![](./docs/main.png)
+
 ## Setup
 To use the app, you will need to have the DB setup. See the Database instructions below. The following steps will install dependencies and compile the application. Compilation will transpile JSX files for use in the browser.
 
