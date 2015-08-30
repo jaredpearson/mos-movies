@@ -15,7 +15,8 @@ app.use(bodyParser.urlencoded({
 }));
 app.use(session({
     secret: 'whisperwhisper',
-    saveUninitialized: false
+    saveUninitialized: false,
+    resave: false
 }));
 
 // views is directory for all template files
