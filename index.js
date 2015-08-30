@@ -14,7 +14,7 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 app.use(session({
-    secret: 'whisperwhisper',
+    secret: process.env.SESSION_SECRET || 'whisperwhisper',
     saveUninitialized: false,
     resave: false
 }));
