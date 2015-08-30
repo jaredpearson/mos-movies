@@ -4,6 +4,16 @@
     "scripts": {
         "postdeploy": "node sql/migrate"
     },
+    "env": {
+        "PORT": {
+            "description": "HTTP port that the application is running on",
+            "value": "5000"
+        },
+        "SESSION_SECRET": {
+            "description": "String used to sign session ID cookies with.",
+            "generator": "secret"
+        }
+    },
     "addons": [
         "heroku-postgresql"
     ],
