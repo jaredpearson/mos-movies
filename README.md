@@ -24,3 +24,11 @@ To update the database to the latest version
 Deploy to Heroku by clicking the following button:
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://github.com/jaredpearson/mos-movies)
+
+Once deployed, log into the application using:
+
+Username: `admin`
+
+Password: `flick`
+
+To change the password before the application is deployed, modify the password within the `postdeploy.js` file before deploying to Heroku.
