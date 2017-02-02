@@ -23,4 +23,4 @@ To update the database to the latest version
 ## Heroku Button
 Deploy to Heroku by clicking the following button:
 
-[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://git.soma.salesforce.com/jared-pearson/mos-movies)
+[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://github.com/jaredpearson/mos-movies)
