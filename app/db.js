@@ -35,7 +35,7 @@ module.exports = {
         const thatArgs = arguments;
         return this.connect()
             .then(client => {
-                return client.query.apply(this, thatArgs)
+                return client.query.apply(client, thatArgs)
                     .fin(() => client.done());
             })
     }
