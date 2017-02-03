@@ -25,7 +25,8 @@ function isNumeric(value) {
  * @returns {Q.Promise} the promise that resolves to DB client
  */
 function startTransaction(clientPromise) {
-    return clientPromise.query('BEGIN')
+    return clientPromise
+        .then(client => client.query('BEGIN'))
         .then(() => {
             console.log('Transaction started')
             return clientPromise;
@@ -38,7 +39,8 @@ function startTransaction(clientPromise) {
  * @returns {Q.Promise} the promise that resolves to DB client
  */
 function rollbackTransaction(clientPromise) {
-    return clientPromise.query('ROLLBACK')
+    return clientPromise
+        .then(client => client.query('ROLLBACK'))
         .then(() => {
             console.log('Transaction rollback')
             return clientPromise;
@@ -51,7 +53,8 @@ function rollbackTransaction(clientPromise) {
  * @returns {Q.Promise} the promise that resolves to DB client
  */
 function commitTransaction(clientPromise) {
-    return clientPromise.query('COMMIT')
+    return clientPromise
+        .then(client => client.query('COMMIT'))
         .then(() => {
             console.log('Transaction commit')
             return clientPromise;
