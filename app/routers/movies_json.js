@@ -59,7 +59,7 @@ function commitTransaction(clientPromise) {
 }
 
 function rejectOnSimilar(clientPromise, title) {
-    return clienPromise
+    return clientPromise
         .then(client => moviesDataService.findSimilar(client, title))
         .then(result => {
             if (result.rowCount > 0) {
