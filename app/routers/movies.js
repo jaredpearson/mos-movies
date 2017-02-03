@@ -1,10 +1,10 @@
 'use strict';
 
-var express = require('express'),
-    router = express.Router(),
-    auth = require('../middlewares/auth');
+const express = require('express');
+const router = express.Router();
+const auth = require('../middlewares/auth');
 
-router.get('/movies', auth, function(request, response) {
+router.get('/movies', auth, (request, response) => {
     response.render('pages/movies');
 });
 

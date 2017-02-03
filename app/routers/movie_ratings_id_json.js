@@ -1,16 +1,20 @@
+/**
+ * Router for /movie-ratings/:id.json urls
+ * 
+ * URL: /movie-ratings/:id.json
+ */
+
 'use strict';
 
-var router = require('express').Router(),
-    auth = require('../middlewares/auth'),
-    db = require('../db'),
-    movieRatingsDataService = require('../data_services/movie_ratings'),
-    views = require('../views'),
-    Q = require('q');
+const router = require('express').Router();
+const auth = require('../middlewares/auth');
+const db = require('../db');
+const movieRatingsDataService = require('../data_services/movie_ratings');
+const views = require('../views');
 
-router.delete('/movie-ratings/:id.json', auth, function(request, response) {
-    var movieRatingId = request.params.id,
-        contextUserId = request.session.user_id,
-        client;
+router.delete('/movie-ratings/:id.json', auth, (request, response) => {
+    const movieRatingId = request.params.id;
+    const contextUserId = request.session.user_id;
 
     if (!movieRatingId) {
         response.sendStatus(400);
@@ -18,21 +22,12 @@ router.delete('/movie-ratings/:id.json', auth, function(request, response) {
     }
 
     db.connect()
-        .then(function(c) {
-            client = c;
+        .then(client => {
+            return movieRatingsDataService.deleteRating(client, movieRatingId, contextUserId)
+                .then(() => response.sendStatus(200))
+                .then(() => client.done());
         })
-        .then(function() {
-            return movieRatingsDataService.deleteRating(client, movieRatingId, contextUserId);
-        })
-        .then(function() {
-            response.sendStatus(200);
-        })
-        .fail(function(err) {
-            views.showErrorPage(response, err);
-        })
-        .fin(function() {
-            client.done();
-        })
+        .fail(views.showErrorPageOnFailCurry(response))
         .done();
 });
 

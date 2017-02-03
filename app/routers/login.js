@@ -1,17 +1,21 @@
+/**
+ * Router for login urls
+ * 
+ * URL: /login
+ */
+
 'use strict';
 
-var express = require('express'),
-    router = express.Router(),
-    db = require('../db'),
-    views = require('../views'),
-    Q = require('q'),
-    usersDataService = require('../data_services/users');
+const express = require('express');
+const router = express.Router();
+const views = require('../views');
+const usersDataService = require('../data_services/users');
 
-router.get('/login', function(request, response) {
+router.get('/login', (request, response) => {
     response.render('pages/login');
 });
 
-router.post('/login', function(request, response) {
+router.post('/login', (request, response) => {
     
     if (!request.body.username) {
         response.render('pages/login', {
@@ -21,7 +25,7 @@ router.post('/login', function(request, response) {
     }
 
     usersDataService.auth(request.body.username, request.body.password)
-        .then(function(userId) {
+        .then(userId => {
             if (userId) {
                 request.session.user_id = userId;
                 response.redirect('/movies');
@@ -31,9 +35,7 @@ router.post('/login', function(request, response) {
                 });
             }
         })
-        .fail(function(err) {
-            views.showErrorPage(response, err);
-        })
+        .fail(views.showErrorPageOnFailCurry(response))
         .done();
 });
 
