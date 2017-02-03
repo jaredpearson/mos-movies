@@ -86,7 +86,7 @@ function insertMovie(clientPromise, title, contextUserId) {
             return client.query('INSERT INTO movies (title, created_by) VALUES ($1::text, $2::integer) RETURNING movies_id', [title, contextUserId]);
         })
         .then(result => {
-            movieId = result.rows[0].movies_id;
+            const movieId = result.rows[0].movies_id;
             console.log('Inserted movie', movieId);
             return movieId;
         });
